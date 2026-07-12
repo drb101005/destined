@@ -1,7 +1,7 @@
 /*
  * Applies tier changes to WebRTC senders and local media tracks.
  */
-export async function applyAdaptiveMedia(peerConnection, localStream, tier) {
+export async function applyAdaptiveMedia(peerConnection, localStream, tier, { noiseSuppressionEnabled = true } = {}) {
   if (!peerConnection || !tier) {
     return;
   }
@@ -57,7 +57,7 @@ export async function applyAdaptiveMedia(peerConnection, localStream, tier) {
     try {
       audioTrack.enabled = true;
       await audioTrack.applyConstraints({
-        noiseSuppression: true,
+        noiseSuppression: noiseSuppressionEnabled,
         echoCancellation: true,
         autoGainControl: true
       });

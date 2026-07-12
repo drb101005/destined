@@ -26,8 +26,10 @@ export default function App() {
   const [remoteStream, setRemoteStream] = useState(null);
   const [messages, setMessages] = useState([]);
   const [manualTextFallback, setManualTextFallback] = useState(false);
+  const [noiseSuppressionEnabled, setNoiseSuppressionEnabled] = useState(true);
   const [connectionState, setConnectionState] = useState('new');
   const [speaking, setSpeaking] = useState(false);
+  const negotiationRequestedRef = useRef(false);
   const videoPreviewRef = useRef(null);
   const recorderRef = useRef(null);
 
@@ -116,12 +118,23 @@ export default function App() {
   }, [requestNegotiation, socket]);
 
   useEffect(() => {
+    if (roomInfo?.peerCount > 1 && peerConnection && !negotiationRequestedRef.current) {
+      negotiationRequestedRef.current = true;
+      requestNegotiation();
+    }
+
+    if (roomInfo?.peerCount <= 1) {
+      negotiationRequestedRef.current = false;
+    }
+  }, [peerConnection, requestNegotiation, roomInfo?.peerCount]);
+
+  useEffect(() => {
     if (!peerConnection || !localStream) {
       return;
     }
 
-    applyAdaptiveMedia(peerConnection, localStream, tier);
-  }, [localStream, peerConnection, tier]);
+    applyAdaptiveMedia(peerConnection, localStream, tier, { noiseSuppressionEnabled });
+  }, [localStream, noiseSuppressionEnabled, peerConnection, tier]);
 
   useEffect(() => {
     if (!localStream) {
@@ -196,6 +209,7 @@ export default function App() {
       });
 
       if (!roomJoin.ok) {
+        stream.getTracks().forEach((track) => track.stop());
         setJoinState(roomJoin.error || 'join failed');
         return;
       }
@@ -363,6 +377,9 @@ export default function App() {
             </button>
             <button className="button button-secondary" type="button" onClick={() => localStream?.getVideoTracks().forEach((track) => (track.enabled = !track.enabled))}>
               Disable video
+            </button>
+            <button className="button button-secondary" type="button" onClick={() => setNoiseSuppressionEnabled((value) => !value)}>
+              Noise suppression: {noiseSuppressionEnabled ? 'on' : 'off'}
             </button>
             <button className="button button-danger" type="button" onClick={() => {
               localStream?.getTracks().forEach((track) => track.stop());
