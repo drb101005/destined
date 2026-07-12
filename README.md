@@ -16,6 +16,7 @@ A browser-based one-to-one calling app that degrades gracefully when the network
 - `npm run build` - build the client
 - `npm run start` - start the server
 - `npm run call` - build the client and start the server in local-laptop mode
+- `npm run deploy:pages` - build the client and publish it to GitHub Pages
 - `npm run test` - run the adaptive logic tests
 
 ## Setup
@@ -84,6 +85,29 @@ For the local-laptop flow described in the build prompt:
 4. Both people enter the same room code and join
 5. Stop the server and tunnel when done
 
+## GitHub Pages Deployment
+
+GitHub Pages can host the React frontend, but not the Socket.IO signaling server. For live calls you still need a separate HTTPS server or tunnel URL.
+
+To deploy the frontend:
+
+1. Push this repo to GitHub.
+2. Set the repository name to `destined`, or update `client/vite.config.js` if you use a different repo name.
+3. Run:
+
+```bash
+npm run deploy:pages
+```
+
+4. In GitHub repo settings, enable Pages from the `gh-pages` branch.
+5. Open the Pages URL, enter your signaling server URL, and join a room.
+
+## Camera Tips
+
+- Use the `Test camera` button on the setup screen to verify your webcam before joining.
+- If you want audio only, uncheck `Join with camera`.
+- If the camera still looks blank, confirm the browser has permission to use the webcam on this site.
+
 ## Notes
 
 - The app uses native WebRTC APIs directly.
@@ -91,4 +115,3 @@ For the local-laptop flow described in the build prompt:
 - The stats overlay shows live connection and quality values, including RTT, packet loss, bitrate, ICE candidate type, and the current adaptive tier.
 - Noise suppression, echo cancellation, and auto gain control are enabled by default, with an in-app toggle for noise suppression.
 - TURN is optional and should be provided through environment variables if cross-network direct P2P fails because of symmetric NAT.
-
