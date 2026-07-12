@@ -7,6 +7,8 @@ export default function ConnectionSetup({
   setRoomCode,
   password,
   setPassword,
+  joinWithVideo,
+  setJoinWithVideo,
   onConnect,
   status
 }) {
@@ -34,6 +36,14 @@ export default function ConnectionSetup({
           Password
           <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="optional shared secret" />
         </label>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={joinWithVideo}
+            onChange={(event) => setJoinWithVideo(event.target.checked)}
+          />
+          Join with camera
+        </label>
         <button className="button" type="button" onClick={() => onConnect(normalizedRoom)}>
           {status === 'connected' ? 'Join room' : 'Connect'}
         </button>
@@ -42,4 +52,3 @@ export default function ConnectionSetup({
     </section>
   );
 }
-

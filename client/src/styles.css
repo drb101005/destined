@@ -1,11 +1,11 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.14), transparent 30%),
-    linear-gradient(180deg, #060913 0%, #050814 100%);
-  color: #e5eefc;
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.1), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%);
+  color: #000000;
 }
 
 * {
@@ -21,6 +21,13 @@ body,
 
 body {
   min-height: 100vh;
+  color: #000000;
+}
+
+body *,
+body *::before,
+body *::after {
+  color: inherit;
 }
 
 input,
@@ -50,10 +57,11 @@ select {
   gap: 28px;
   padding: 36px;
   border-radius: 28px;
-  background: rgba(7, 12, 24, 0.76);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
+  color: #000000;
 }
 
 .setup-copy h1,
@@ -61,11 +69,12 @@ select {
   margin: 0;
   font-size: clamp(2rem, 4vw, 4rem);
   line-height: 0.98;
+  color: #000000;
 }
 
 .setup-copy p,
 .call-notice p {
-  color: #b7c7e6;
+  color: #000000;
   line-height: 1.6;
 }
 
@@ -74,7 +83,7 @@ select {
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-size: 0.74rem;
-  color: #7dd3fc;
+  color: #000000;
 }
 
 .setup-form,
@@ -83,8 +92,9 @@ select {
 .stats-panel__content,
 .quality-badge {
   border-radius: 24px;
-  background: rgba(9, 14, 28, 0.84);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #000000;
 }
 
 .setup-form {
@@ -94,47 +104,60 @@ select {
 }
 
 .setup-form label,
-.control-stack label {
+.control-stack label,
+.checkbox-row {
   display: grid;
   gap: 8px;
-  color: #d8e4f4;
+  color: #000000;
   font-size: 0.95rem;
+}
+
+.checkbox-row {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
 }
 
 .setup-form input,
 .control-stack input,
-.chat-compose input {
+.chat-compose input,
+.quality-badge select {
   width: 100%;
   padding: 14px 16px;
   border-radius: 16px;
-  color: #eaf2ff;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #000000;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
 .button {
   border-radius: 16px;
   padding: 13px 18px;
   cursor: pointer;
-  color: #04111d;
-  background: linear-gradient(135deg, #7dd3fc 0%, #34d399 100%);
+  color: #000000;
+  background: linear-gradient(135deg, #cfe8ff 0%, #d8f5df 100%);
   font-weight: 700;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .button-secondary {
-  color: #dce7f9;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #000000;
+  background: #f2f5fa;
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .button-danger {
-  color: #fff;
-  background: linear-gradient(135deg, #fb7185 0%, #f97316 100%);
+  color: #000000;
+  background: linear-gradient(135deg, #ffd7df 0%, #ffe4c7 100%);
 }
 
 .setup-status {
   margin: 0;
-  color: #8aa0c5;
+  color: #000000;
 }
 
 .call-layout {
@@ -143,6 +166,7 @@ select {
   display: grid;
   gap: 20px;
   grid-template-rows: auto auto auto;
+  color: #000000;
 }
 
 .call-header {
@@ -152,9 +176,9 @@ select {
   align-items: center;
   padding: 18px 22px;
   border-radius: 24px;
-  background: rgba(8, 13, 26, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 16px 45px rgba(15, 23, 42, 0.06);
 }
 
 .header-actions {
@@ -172,8 +196,8 @@ select {
 }
 
 .quality-badge select {
-  color: #eaf2ff;
-  background: rgba(255, 255, 255, 0.06);
+  color: #000000;
+  background: #ffffff;
   border-radius: 999px;
   padding: 8px 12px;
 }
@@ -184,23 +208,23 @@ select {
   gap: 8px;
   padding: 11px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: #f2f5fa;
 }
 
 .status-dot {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: #94a3b8;
+  background: #64748b;
 }
 
 .status-connected {
-  background: #34d399;
+  background: #16a34a;
 }
 
 .status-disconnected,
 .status-error {
-  background: #fb7185;
+  background: #dc2626;
 }
 
 .video-grid {
@@ -213,21 +237,45 @@ select {
   margin: 0;
   overflow: hidden;
   border-radius: 28px;
-  min-height: 280px;
+  min-height: 320px;
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
-    radial-gradient(circle at top left, rgba(125, 211, 252, 0.18), transparent 40%),
-    rgba(8, 13, 25, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.96)),
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 42%),
+    #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.07);
 }
 
 .video-tile video {
   width: 100%;
   height: 100%;
-  min-height: 280px;
+  min-height: 320px;
   object-fit: cover;
   display: block;
+  background: #e5e7eb;
+}
+
+.video-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #000000;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(243, 244, 246, 0.95));
+}
+
+.video-status {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #000000;
+  font-size: 0.82rem;
 }
 
 .video-tile figcaption {
@@ -236,16 +284,16 @@ select {
   bottom: 16px;
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(4, 8, 18, 0.72);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .call-notice {
   grid-column: 1 / -1;
   padding: 18px 22px;
   border-radius: 24px;
-  background: rgba(9, 14, 28, 0.84);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .dashboard {
@@ -286,19 +334,20 @@ select {
 .chat-bubble {
   padding: 12px 14px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
+  background: #f8fafc;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .chat-bubble.local {
-  background: rgba(125, 211, 252, 0.12);
+  background: #eef6ff;
 }
 
 .chat-bubble.remote {
-  background: rgba(52, 211, 153, 0.12);
+  background: #ecfdf5;
 }
 
 .chat-bubble.system {
-  background: rgba(255, 255, 255, 0.04);
+  background: #f8fafc;
 }
 
 .chat-meta {
@@ -306,13 +355,14 @@ select {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-size: 0.72rem;
-  color: #8aa0c5;
+  color: #475569;
   margin-bottom: 6px;
 }
 
 .chat-bubble p {
   margin: 0;
   line-height: 1.5;
+  color: #000000;
 }
 
 .chat-compose {
@@ -341,7 +391,8 @@ select {
 .stat {
   padding: 12px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
+  background: #f8fafc;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   display: grid;
   gap: 6px;
 }
@@ -349,7 +400,7 @@ select {
 .stat span,
 .setup-form label,
 .controls-card label {
-  color: #9db0d1;
+  color: #000000;
 }
 
 .transition-log {
@@ -358,7 +409,7 @@ select {
   max-height: 150px;
   overflow: auto;
   font-size: 0.92rem;
-  color: #b9c9e3;
+  color: #000000;
 }
 
 .stats-panel {
@@ -367,6 +418,7 @@ select {
   bottom: 18px;
   width: min(420px, calc(100vw - 36px));
   z-index: 40;
+  color: #000000;
 }
 
 .stats-toggle {
@@ -376,9 +428,10 @@ select {
   z-index: 41;
   padding: 12px 14px;
   border-radius: 999px;
-  color: #eaf2ff;
-  background: rgba(7, 12, 24, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #000000;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
 }
 
 .hidden-preview {
@@ -387,6 +440,27 @@ select {
   height: 1px;
   opacity: 0;
   pointer-events: none;
+}
+
+.setup-preview {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.setup-preview video {
+  width: 100%;
+  min-height: 240px;
+  border-radius: 22px;
+  background: #e5e7eb;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  object-fit: cover;
+}
+
+.setup-preview__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 980px) {
@@ -404,4 +478,3 @@ select {
     align-items: flex-start;
   }
 }
-

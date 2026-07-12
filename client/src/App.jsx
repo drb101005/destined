@@ -24,14 +24,19 @@ export default function App() {
   const [roomInfo, setRoomInfo] = useState(null);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [cameraPreviewStream, setCameraPreviewStream] = useState(null);
+  const [cameraError, setCameraError] = useState('');
   const [messages, setMessages] = useState([]);
   const [manualTextFallback, setManualTextFallback] = useState(false);
   const [noiseSuppressionEnabled, setNoiseSuppressionEnabled] = useState(true);
+  const [joinWithVideo, setJoinWithVideo] = useLocalStorage('destined:joinWithVideo', true);
   const [connectionState, setConnectionState] = useState('new');
   const [speaking, setSpeaking] = useState(false);
   const negotiationRequestedRef = useRef(false);
   const videoPreviewRef = useRef(null);
   const recorderRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const cameraPreviewStreamRef = useRef(null);
 
   const { socket, status: socketStatus } = useSocketConnection(serverUrl);
 
@@ -53,6 +58,21 @@ export default function App() {
 
     videoPreviewRef.current.srcObject = localStream;
   }, [localStream]);
+
+  useEffect(() => {
+    localStreamRef.current = localStream;
+  }, [localStream]);
+
+  useEffect(() => {
+    cameraPreviewStreamRef.current = cameraPreviewStream;
+  }, [cameraPreviewStream]);
+
+  useEffect(() => {
+    return () => {
+      cameraPreviewStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
 
   useEffect(() => {
     if (!socket) {
@@ -190,14 +210,14 @@ export default function App() {
 
     try {
       setJoinState('requesting media');
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const stream = cameraPreviewStreamRef.current || (await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         },
-        video: true
-      });
+        video: joinWithVideo
+      }));
       setLocalStream(stream);
 
       const roomJoin = await new Promise((resolve) => {
@@ -226,6 +246,26 @@ export default function App() {
     } catch (error) {
       setJoinState(error.message || 'media error');
     }
+  };
+
+  const testCamera = async () => {
+    try {
+      setCameraError('');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: joinWithVideo
+      });
+      cameraPreviewStreamRef.current?.getTracks().forEach((track) => track.stop());
+      setCameraPreviewStream(stream);
+    } catch (error) {
+      setCameraError(error.message || 'camera unavailable');
+    }
+  };
+
+  const clearCameraPreview = () => {
+    cameraPreviewStreamRef.current?.getTracks().forEach((track) => track.stop());
+    setCameraPreviewStream(null);
+    setCameraError('');
   };
 
   const sendMessage = (text) => {
@@ -311,9 +351,41 @@ export default function App() {
           setRoomCode={setRoomCode}
           password={password}
           setPassword={setPassword}
+          joinWithVideo={joinWithVideo}
+          setJoinWithVideo={setJoinWithVideo}
           onConnect={startCall}
           status={socketStatus}
         />
+        <section className="setup-preview">
+          <div className="controls-row">
+            <strong>Camera preview</strong>
+            <span>{joinWithVideo ? 'camera on' : 'audio only'}</span>
+          </div>
+          <div className="setup-preview__actions">
+            <button className="button button-secondary" type="button" onClick={testCamera}>
+              Test camera
+            </button>
+            <button className="button button-secondary" type="button" onClick={clearCameraPreview}>
+              Clear preview
+            </button>
+          </div>
+          <div className="video-tile">
+            <video
+              ref={(node) => {
+                if (node && cameraPreviewStream && node.srcObject !== cameraPreviewStream) {
+                  node.srcObject = cameraPreviewStream;
+                  node.play().catch(() => {});
+                }
+              }}
+              autoPlay
+              playsInline
+              muted
+            />
+            {!cameraPreviewStream ? <div className="video-empty">No camera preview yet</div> : null}
+            <div className="video-status">{cameraError || 'preview'}</div>
+            <figcaption>Setup preview</figcaption>
+          </div>
+        </section>
       </main>
     );
   }
@@ -336,7 +408,11 @@ export default function App() {
 
       <section className="video-grid">
         {tiles.map((tile) => (
-          <VideoTile key={tile.label} {...tile} />
+          <VideoTile
+            key={tile.label}
+            {...tile}
+            statusText={tile.label === 'Local' ? (joinWithVideo && localStream?.getVideoTracks()?.[0]?.enabled ? 'camera active' : 'camera off') : remoteStream ? 'remote live' : 'waiting for peer'}
+          />
         ))}
         <div className="call-notice">
           <strong>Mode:</strong> {tier.name}
