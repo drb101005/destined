@@ -55,6 +55,24 @@ export function decideTier(stats, state) {
   }
 
   const currentTierIndex = state.currentTierIndex;
+  const hasRealStats =
+    Number.isFinite(stats.rttMs) && stats.rttMs > 0 ||
+    Number.isFinite(stats.packetLossPercent) && stats.packetLossPercent > 0 ||
+    Number.isFinite(stats.availableBitrateKbps) && stats.availableBitrateKbps > 0 ||
+    Number.isFinite(stats.bytesSent) && stats.bytesSent > 0 ||
+    Number.isFinite(stats.bytesReceived) && stats.bytesReceived > 0;
+
+  if (!hasRealStats) {
+    return {
+      state: {
+        ...state,
+        lastDecisionAt: Date.now()
+      },
+      tier: getTierByIndex(currentTierIndex),
+      transitions: []
+    };
+  }
+
   const desiredTierIndex = ADAPTIVE_CONFIG.tiers.findIndex((tier) => fitsTier(stats, tier));
   const normalizedDesiredIndex =
     desiredTierIndex === -1 ? ADAPTIVE_CONFIG.tiers.length - 1 : desiredTierIndex;

@@ -12,7 +12,7 @@ export default function ChatPanel({ messages, onSendMessage, onSendVoiceNote, on
       <div className="chat-log">
         {messages.map((entry) => (
           <div key={entry.id} className={`chat-bubble ${entry.kind}`}>
-            <span className="chat-meta">{entry.kind}</span>
+            <span className="chat-meta">{entry.author ? `${entry.kind} · ${entry.author}` : entry.kind}</span>
             <p>{entry.text}</p>
           </div>
         ))}
@@ -42,4 +42,3 @@ export default function ChatPanel({ messages, onSendMessage, onSendVoiceNote, on
     </section>
   );
 }
-

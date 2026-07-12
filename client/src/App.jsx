@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import ChatPanel from './components/ChatPanel';
 import ConnectionSetup from './components/ConnectionSetup';
 import QualityBadge from './components/QualityBadge';
 import StatsPanel from './components/StatsPanel';
 import VideoTile from './components/VideoTile';
-import { ADAPTIVE_CONFIG } from './adaptive/config';
 import { useAdaptiveTier } from './hooks/useAdaptiveTier';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useNetworkStats } from './hooks/useNetworkStats';
@@ -16,6 +15,7 @@ const DEFAULT_SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:
 
 export default function App() {
   const [serverUrl, setServerUrl] = useLocalStorage('destined:serverUrl', DEFAULT_SERVER_URL);
+  const [displayName, setDisplayName] = useLocalStorage('destined:displayName', 'You');
   const [roomCode, setRoomCode] = useLocalStorage('destined:roomCode', 'MANGO-42');
   const [password, setPassword] = useLocalStorage('destined:roomPassword', '');
   const [statsOpen, setStatsOpen] = useLocalStorage('destined:statsOpen', true);
@@ -24,26 +24,24 @@ export default function App() {
   const [roomInfo, setRoomInfo] = useState(null);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  const [cameraPreviewStream, setCameraPreviewStream] = useState(null);
-  const [cameraError, setCameraError] = useState('');
+  const [remoteDisplayName, setRemoteDisplayName] = useState('Guest');
   const [messages, setMessages] = useState([]);
   const [manualTextFallback, setManualTextFallback] = useState(false);
   const [noiseSuppressionEnabled, setNoiseSuppressionEnabled] = useState(true);
-  const [joinWithVideo, setJoinWithVideo] = useLocalStorage('destined:joinWithVideo', true);
+  const [micEnabled, setMicEnabled] = useLocalStorage('destined:micEnabled', false);
+  const [camEnabled, setCamEnabled] = useLocalStorage('destined:camEnabled', false);
   const [connectionState, setConnectionState] = useState('new');
   const [speaking, setSpeaking] = useState(false);
   const negotiationRequestedRef = useRef(false);
-  const videoPreviewRef = useRef(null);
   const recorderRef = useRef(null);
   const localStreamRef = useRef(null);
-  const cameraPreviewStreamRef = useRef(null);
 
   const { socket, status: socketStatus } = useSocketConnection(serverUrl);
 
   const { peerConnection, requestNegotiation } = usePeerConnection({
     socket,
     roomCode: roomInfo?.roomCode || '',
-    localStream,
+    localStream: localStream || null,
     onRemoteStream: setRemoteStream,
     onConnectionStateChange: setConnectionState
   });
@@ -52,35 +50,24 @@ export default function App() {
   const { tier, transitionLog } = useAdaptiveTier(stats, { forceTierName: forceTierName || null });
 
   useEffect(() => {
-    if (!localStream || !videoPreviewRef.current) {
-      return;
-    }
-
-    videoPreviewRef.current.srcObject = localStream;
-  }, [localStream]);
-
-  useEffect(() => {
     localStreamRef.current = localStream;
   }, [localStream]);
-
-  useEffect(() => {
-    cameraPreviewStreamRef.current = cameraPreviewStream;
-  }, [cameraPreviewStream]);
-
-  useEffect(() => {
-    return () => {
-      cameraPreviewStreamRef.current?.getTracks().forEach((track) => track.stop());
-      localStreamRef.current?.getTracks().forEach((track) => track.stop());
-    };
-  }, []);
 
   useEffect(() => {
     if (!socket) {
       return undefined;
     }
 
-    const handlePeerJoined = async () => {
-      await requestNegotiation();
+    const handlePeerJoined = (payload) => {
+      setMessages((current) => [
+        ...current,
+        {
+          id: `${Date.now()}-${payload.peerId}`,
+          kind: 'system',
+          text: `${payload.displayName || 'Guest'} joined the room`
+        }
+      ]);
+      setRemoteDisplayName(payload.displayName || 'Guest');
     };
 
     const handleChatMessage = (payload) => {
@@ -89,6 +76,7 @@ export default function App() {
         {
           id: `${payload.createdAt}-${payload.peerId}`,
           kind: 'remote',
+          author: payload.displayName || 'Guest',
           text: payload.message
         }
       ]);
@@ -100,7 +88,8 @@ export default function App() {
         {
           id: `${payload.createdAt}-${payload.peerId}`,
           kind: 'voice',
-          text: `Voice note from ${payload.peerId.slice(0, 6)} (${Math.round((payload.data?.length || 0) / 1024)} KB)`
+          author: payload.displayName || 'Guest',
+          text: `Voice note (${Math.round((payload.data?.length || 0) / 1024)} KB)`
         }
       ]);
     };
@@ -111,7 +100,7 @@ export default function App() {
         {
           id: `${Date.now()}-${payload.peerId}`,
           kind: 'system',
-          text: `Peer ${payload.peerId.slice(0, 6)} left the room`
+          text: `${payload.displayName || 'Guest'} left the room`
         }
       ]);
       setRoomInfo((current) =>
@@ -122,6 +111,7 @@ export default function App() {
             }
           : current
       );
+      setRemoteDisplayName('Guest');
     };
 
     socket.on('peer:joined', handlePeerJoined);
@@ -149,6 +139,16 @@ export default function App() {
   }, [peerConnection, requestNegotiation, roomInfo?.peerCount]);
 
   useEffect(() => {
+    if (!roomInfo || !peerConnection) {
+      return;
+    }
+
+    if (localStream?.getTracks?.().length) {
+      requestNegotiation();
+    }
+  }, [localStream, peerConnection, requestNegotiation, roomInfo]);
+
+  useEffect(() => {
     if (!peerConnection || !localStream) {
       return;
     }
@@ -173,6 +173,12 @@ export default function App() {
       return undefined;
     }
 
+    const audioTracks = localStream.getAudioTracks();
+    if (!audioTracks.length) {
+      setSpeaking(false);
+      return undefined;
+    }
+
     const audioContext = new window.AudioContext();
     const source = audioContext.createMediaStreamSource(localStream);
     const analyser = audioContext.createAnalyser();
@@ -180,6 +186,7 @@ export default function App() {
     source.connect(analyser);
     const buffer = new Uint8Array(analyser.frequencyBinCount);
 
+    let animationFrameId = 0;
     const tick = () => {
       analyser.getByteTimeDomainData(buffer);
       const rms = Math.sqrt(buffer.reduce((sum, value) => {
@@ -187,12 +194,13 @@ export default function App() {
         return sum + normalized * normalized;
       }, 0) / buffer.length);
       setSpeaking(rms > 0.06);
-      requestAnimationFrame(tick);
+      animationFrameId = requestAnimationFrame(tick);
     };
 
     tick();
 
     return () => {
+      cancelAnimationFrame(animationFrameId);
       source.disconnect();
       analyser.disconnect();
       audioContext.close();
@@ -210,37 +218,31 @@ export default function App() {
 
     try {
       setJoinState('requesting media');
-      const stream = cameraPreviewStreamRef.current || (await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        },
-        video: joinWithVideo
-      }));
-      setLocalStream(stream);
 
       const roomJoin = await new Promise((resolve) => {
         socket.emit(
           'room:join',
-          { roomCode: normalizedRoomCode, password },
+          { roomCode: normalizedRoomCode, password, displayName },
           (response) => resolve(response)
         );
       });
 
       if (!roomJoin.ok) {
-        stream.getTracks().forEach((track) => track.stop());
         setJoinState(roomJoin.error || 'join failed');
         return;
       }
 
       setRoomInfo(roomJoin);
-      setJoinState(`joined as ${roomJoin.peerId}`);
+      setJoinState(`joined as ${roomJoin.displayName || displayName}`);
+      const otherPeer = roomJoin.peers?.find((peer) => peer.peerId !== roomJoin.peerId);
+      if (otherPeer?.displayName) {
+        setRemoteDisplayName(otherPeer.displayName);
+      }
       setMessages((current) => [
         ...current,
-        { id: `room-${Date.now()}`, kind: 'system', text: `Joined room ${roomJoin.roomCode}` }
+        { id: `room-${Date.now()}`, kind: 'system', text: `Joined room ${roomJoin.roomCode} as ${roomJoin.displayName || displayName}` }
       ]);
-      if (roomJoin.peerCount > 1) {
+      if (roomJoin.shouldInitiateOffer) {
         await requestNegotiation();
       }
     } catch (error) {
@@ -248,24 +250,69 @@ export default function App() {
     }
   };
 
-  const testCamera = async () => {
+  const ensureLocalTrack = async (kind) => {
+    const existingStream = localStreamRef.current;
+    const existingTrack = existingStream?.getTracks().find((track) => track.kind === kind);
+
+    if (existingTrack) {
+      existingTrack.enabled = true;
+      if (kind === 'audio') {
+        setMicEnabled(true);
+      } else {
+        setCamEnabled(true);
+      }
+      return existingStream;
+    }
+
+    const constraints = kind === 'audio'
+      ? { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }
+      : { audio: false, video: true };
+
+    const freshStream = await navigator.mediaDevices.getUserMedia(constraints);
+    const merged = new MediaStream([
+      ...(existingStream?.getTracks() || []),
+      ...freshStream.getTracks()
+    ]);
+    freshStream.getTracks().forEach((track) => {
+      track.enabled = true;
+    });
+    setLocalStream(merged);
+    if (kind === 'audio') {
+      setMicEnabled(true);
+    } else {
+      setCamEnabled(true);
+    }
+    return merged;
+  };
+
+  const toggleMic = async () => {
     try {
-      setCameraError('');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: joinWithVideo
-      });
-      cameraPreviewStreamRef.current?.getTracks().forEach((track) => track.stop());
-      setCameraPreviewStream(stream);
+      const currentTrack = localStreamRef.current?.getAudioTracks()?.[0];
+      if (currentTrack) {
+        currentTrack.enabled = !currentTrack.enabled;
+        setMicEnabled(currentTrack.enabled);
+        return;
+      }
+
+      await ensureLocalTrack('audio');
     } catch (error) {
-      setCameraError(error.message || 'camera unavailable');
+      setJoinState(error.message || 'microphone unavailable');
     }
   };
 
-  const clearCameraPreview = () => {
-    cameraPreviewStreamRef.current?.getTracks().forEach((track) => track.stop());
-    setCameraPreviewStream(null);
-    setCameraError('');
+  const toggleCam = async () => {
+    try {
+      const currentTrack = localStreamRef.current?.getVideoTracks()?.[0];
+      if (currentTrack) {
+        currentTrack.enabled = !currentTrack.enabled;
+        setCamEnabled(currentTrack.enabled);
+        return;
+      }
+
+      await ensureLocalTrack('video');
+    } catch (error) {
+      setJoinState(error.message || 'camera unavailable');
+    }
   };
 
   const sendMessage = (text) => {
@@ -282,6 +329,7 @@ export default function App() {
       {
         id: `${Date.now()}-local`,
         kind: 'local',
+        author: displayName,
         text
       }
     ]);
@@ -335,10 +383,10 @@ export default function App() {
 
   const tiles = useMemo(
     () => [
-      { label: 'Local', stream: localStream, muted: true, accent: 'local' },
-      { label: 'Remote', stream: remoteStream, muted: false, accent: 'remote' }
+      { label: displayName || 'You', stream: localStream, muted: true, accent: 'local' },
+      { label: remoteDisplayName || 'Guest', stream: remoteStream, muted: false, accent: 'remote' }
     ],
-    [localStream, remoteStream]
+    [displayName, localStream, remoteDisplayName, remoteStream]
   );
 
   if (!roomInfo) {
@@ -347,45 +395,15 @@ export default function App() {
         <ConnectionSetup
           serverUrl={serverUrl}
           setServerUrl={setServerUrl}
+          displayName={displayName}
+          setDisplayName={setDisplayName}
           roomCode={roomCode}
           setRoomCode={setRoomCode}
           password={password}
           setPassword={setPassword}
-          joinWithVideo={joinWithVideo}
-          setJoinWithVideo={setJoinWithVideo}
           onConnect={startCall}
           status={socketStatus}
         />
-        <section className="setup-preview">
-          <div className="controls-row">
-            <strong>Camera preview</strong>
-            <span>{joinWithVideo ? 'camera on' : 'audio only'}</span>
-          </div>
-          <div className="setup-preview__actions">
-            <button className="button button-secondary" type="button" onClick={testCamera}>
-              Test camera
-            </button>
-            <button className="button button-secondary" type="button" onClick={clearCameraPreview}>
-              Clear preview
-            </button>
-          </div>
-          <div className="video-tile">
-            <video
-              ref={(node) => {
-                if (node && cameraPreviewStream && node.srcObject !== cameraPreviewStream) {
-                  node.srcObject = cameraPreviewStream;
-                  node.play().catch(() => {});
-                }
-              }}
-              autoPlay
-              playsInline
-              muted
-            />
-            {!cameraPreviewStream ? <div className="video-empty">No camera preview yet</div> : null}
-            <div className="video-status">{cameraError || 'preview'}</div>
-            <figcaption>Setup preview</figcaption>
-          </div>
-        </section>
       </main>
     );
   }
@@ -396,6 +414,7 @@ export default function App() {
         <div>
           <p className="eyebrow">Room {roomInfo.roomCode}</p>
           <h1>Adaptive low-bandwidth call</h1>
+          <p className="call-subtitle">Signed in as {displayName}</p>
         </div>
         <div className="header-actions">
           <QualityBadge tier={tier} onForceTier={setForceTierName} activeForceTier={forceTierName} />
@@ -411,13 +430,54 @@ export default function App() {
           <VideoTile
             key={tile.label}
             {...tile}
-            statusText={tile.label === 'Local' ? (joinWithVideo && localStream?.getVideoTracks()?.[0]?.enabled ? 'camera active' : 'camera off') : remoteStream ? 'remote live' : 'waiting for peer'}
+            statusText={
+              tile.label === (displayName || 'You')
+                ? (camEnabled ? 'camera active' : 'camera off')
+                : remoteStream
+                  ? 'remote live'
+                  : 'waiting for peer'
+            }
           />
         ))}
         <div className="call-notice">
           <strong>Mode:</strong> {tier.name}
           <p>{isFallbackMode ? 'Using chat / voice notes fallback.' : speaking ? 'Speaking detected.' : 'Listening for speech.'}</p>
         </div>
+      </section>
+
+      <section className="meeting-controls">
+        <button
+          className={`round-control ${localStream?.getAudioTracks()?.[0]?.enabled ? 'is-active' : ''}`}
+          type="button"
+          onClick={toggleMic}
+          aria-label="Toggle microphone"
+        >
+          {localStream?.getAudioTracks()?.[0]?.enabled ? 'Mic' : 'Mic off'}
+        </button>
+        <button
+          className={`round-control ${localStream?.getVideoTracks()?.[0]?.enabled ? 'is-active' : ''}`}
+          type="button"
+          onClick={toggleCam}
+          aria-label="Toggle camera"
+        >
+          {localStream?.getVideoTracks()?.[0]?.enabled ? 'Cam' : 'Cam off'}
+        </button>
+        <button
+          className="round-control round-control--danger"
+          type="button"
+          onClick={() => {
+            localStream?.getTracks().forEach((track) => track.stop());
+            setLocalStream(null);
+            setRemoteStream(null);
+            setRoomInfo(null);
+            setMessages([]);
+            setMicEnabled(false);
+            setCamEnabled(false);
+          }}
+          aria-label="Leave call"
+        >
+          Leave
+        </button>
       </section>
 
       <section className="dashboard">
@@ -430,9 +490,7 @@ export default function App() {
         />
         <div className="controls-card">
           <div className="controls-row">
-            <button className="button button-secondary" type="button" onClick={() => setRoomInfo(null)}>
-              Leave room
-            </button>
+            <strong>Meeting settings</strong>
             <button className="button button-secondary" type="button" onClick={() => setStatsOpen((value) => !value)}>
               {statsOpen ? 'Hide nerd stats' : 'Show nerd stats'}
             </button>
@@ -446,26 +504,10 @@ export default function App() {
               Room code
               <input value={roomCode} onChange={(event) => setRoomCode(event.target.value)} />
             </label>
-          </div>
-          <div className="control-stack">
-            <button className="button button-secondary" type="button" onClick={() => localStream?.getAudioTracks().forEach((track) => (track.enabled = !track.enabled))}>
-              Mute audio
-            </button>
-            <button className="button button-secondary" type="button" onClick={() => localStream?.getVideoTracks().forEach((track) => (track.enabled = !track.enabled))}>
-              Disable video
-            </button>
-            <button className="button button-secondary" type="button" onClick={() => setNoiseSuppressionEnabled((value) => !value)}>
-              Noise suppression: {noiseSuppressionEnabled ? 'on' : 'off'}
-            </button>
-            <button className="button button-danger" type="button" onClick={() => {
-              localStream?.getTracks().forEach((track) => track.stop());
-              setLocalStream(null);
-              setRemoteStream(null);
-              setRoomInfo(null);
-              setMessages([]);
-            }}>
-              Hang up
-            </button>
+            <label>
+              Your name
+              <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+            </label>
           </div>
         </div>
       </section>
@@ -481,7 +523,6 @@ export default function App() {
         peerCount={peerCount}
         onCopy={copyStats}
       />
-      <video ref={videoPreviewRef} className="hidden-preview" autoPlay playsInline muted />
     </main>
   );
 }
@@ -494,3 +535,4 @@ function blobToBase64(blob) {
     reader.readAsDataURL(blob);
   });
 }
+

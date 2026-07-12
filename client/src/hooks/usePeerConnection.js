@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 export function usePeerConnection({ socket, roomCode, localStream, onRemoteStream, onConnectionStateChange }) {
   const peerConnectionRef = useRef(null);
+  const remoteStreamRef = useRef(null);
   const [peerConnection, setPeerConnection] = useState(null);
   const [connectionState, setConnectionState] = useState('new');
   const [negotiationTick, setNegotiationTick] = useState(0);
@@ -35,6 +36,7 @@ export function usePeerConnection({ socket, roomCode, localStream, onRemoteStrea
       iceServers,
       bundlePolicy: 'max-bundle'
     });
+    remoteStreamRef.current = new MediaStream();
 
     peerConnectionRef.current = peerConnection;
     setPeerConnection(peerConnection);
@@ -43,7 +45,13 @@ export function usePeerConnection({ socket, roomCode, localStream, onRemoteStrea
       const [stream] = event.streams;
       if (stream) {
         onRemoteStream?.(stream);
+        return;
       }
+
+      const remoteStream = remoteStreamRef.current || new MediaStream();
+      remoteStream.addTrack(event.track);
+      remoteStreamRef.current = remoteStream;
+      onRemoteStream?.(remoteStream);
     };
 
     peerConnection.onconnectionstatechange = () => {
@@ -55,20 +63,6 @@ export function usePeerConnection({ socket, roomCode, localStream, onRemoteStrea
       if (event.candidate) {
         socket.emit('signal:ice', { roomCode, candidate: event.candidate });
       }
-    };
-
-    const senders = [];
-    localStream?.getTracks().forEach((track) => {
-      senders.push(peerConnection.addTrack(track, localStream));
-    });
-
-    const createOffer = async () => {
-      if (peerConnection.signalingState !== 'stable') {
-        return;
-      }
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      socket.emit('signal:offer', { roomCode, sdp: peerConnection.localDescription });
     };
 
     const handleOffer = async ({ sdp }) => {
@@ -105,6 +99,7 @@ export function usePeerConnection({ socket, roomCode, localStream, onRemoteStrea
       socket.off('signal:ice', handleIce);
       peerConnection.close();
       peerConnectionRef.current = null;
+      remoteStreamRef.current = null;
       setPeerConnection(null);
     };
   }, [iceServers, localStream, onConnectionStateChange, onRemoteStream, roomCode, socket]);
@@ -112,6 +107,10 @@ export function usePeerConnection({ socket, roomCode, localStream, onRemoteStrea
   const requestNegotiation = async () => {
     const peerConnection = peerConnectionRef.current;
     if (!peerConnection || !socket) {
+      return;
+    }
+
+    if (!localStream?.getTracks?.().length) {
       return;
     }
 

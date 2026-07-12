@@ -3,12 +3,12 @@ import { useMemo } from 'react';
 export default function ConnectionSetup({
   serverUrl,
   setServerUrl,
+  displayName,
+  setDisplayName,
   roomCode,
   setRoomCode,
   password,
   setPassword,
-  joinWithVideo,
-  setJoinWithVideo,
   onConnect,
   status
 }) {
@@ -25,6 +25,10 @@ export default function ConnectionSetup({
       </div>
       <div className="setup-form">
         <label>
+          Your name
+          <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Alex" />
+        </label>
+        <label>
           Server URL
           <input value={serverUrl} onChange={(event) => setServerUrl(event.target.value)} placeholder="http://localhost:3001" />
         </label>
@@ -35,14 +39,6 @@ export default function ConnectionSetup({
         <label>
           Password
           <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="optional shared secret" />
-        </label>
-        <label className="checkbox-row">
-          <input
-            type="checkbox"
-            checked={joinWithVideo}
-            onChange={(event) => setJoinWithVideo(event.target.checked)}
-          />
-          Join with camera
         </label>
         <button className="button" type="button" onClick={() => onConnect(normalizedRoom)}>
           {status === 'connected' ? 'Join room' : 'Connect'}

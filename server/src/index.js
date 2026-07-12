@@ -33,7 +33,7 @@ function ensureRoom(roomCode) {
   if (!rooms.has(normalized)) {
     rooms.set(normalized, {
       roomId: makeRoomId(normalized),
-      peers: new Set()
+      peers: new Map()
     });
   }
 
@@ -44,7 +44,10 @@ function roomSnapshot(roomCode) {
   const normalized = normalizeRoomCode(roomCode);
   const room = rooms.get(normalized);
   return room
-    ? { roomId: room.roomId, peers: Array.from(room.peers) }
+    ? {
+        roomId: room.roomId,
+        peers: Array.from(room.peers.entries()).map(([peerId, displayName]) => ({ peerId, displayName }))
+      }
     : { roomId: makeRoomId(normalized), peers: [] };
 }
 
@@ -72,6 +75,7 @@ app.get('/health', (_req, res) => {
 app.post('/api/rooms/join', (req, res) => {
   const roomCode = normalizeRoomCode(req.body?.roomCode);
   const password = String(req.body?.password || '');
+  const displayName = String(req.body?.displayName || 'Guest').trim() || 'Guest';
 
   if (!roomCode) {
     return res.status(400).json({ error: 'roomCode is required' });
@@ -84,6 +88,7 @@ app.post('/api/rooms/join', (req, res) => {
   const room = ensureRoom(roomCode);
   return res.json({
     roomCode,
+    displayName,
     ...roomSnapshot(roomCode),
     peerCount: room.peers.size
   });
@@ -105,6 +110,7 @@ io.on('connection', (socket) => {
     try {
       const roomCode = normalizeRoomCode(payload.roomCode);
       const password = String(payload.password || '');
+      const displayName = String(payload.displayName || 'Guest').trim() || 'Guest';
 
       if (!roomCode) {
         return ack({ ok: false, error: 'roomCode is required' });
@@ -120,16 +126,19 @@ io.on('connection', (socket) => {
       }
 
       socket.join(roomCode);
-      room.peers.add(socket.id);
+      room.peers.set(socket.id, displayName);
       socket.data.roomCode = roomCode;
+      socket.data.displayName = displayName;
 
-      socket.to(roomCode).emit('peer:joined', { peerId: socket.id });
+      socket.to(roomCode).emit('peer:joined', { peerId: socket.id, displayName });
 
       ack({
         ok: true,
         roomCode,
+        displayName,
         peerId: socket.id,
         peerCount: room.peers.size,
+        shouldInitiateOffer: room.peers.size === 2,
         ...roomSnapshot(roomCode)
       });
     } catch (error) {
@@ -165,6 +174,7 @@ io.on('connection', (socket) => {
   socket.on('chat:message', ({ roomCode, message }) => {
     socket.to(normalizeRoomCode(roomCode)).emit('chat:message', {
       peerId: socket.id,
+      displayName: socket.data.displayName || 'Guest',
       message,
       createdAt: Date.now()
     });
@@ -173,6 +183,7 @@ io.on('connection', (socket) => {
   socket.on('voice:message', ({ roomCode, chunkId, data }) => {
     socket.to(normalizeRoomCode(roomCode)).emit('voice:message', {
       peerId: socket.id,
+      displayName: socket.data.displayName || 'Guest',
       chunkId,
       data,
       createdAt: Date.now()
@@ -184,7 +195,10 @@ io.on('connection', (socket) => {
     if (roomCode && rooms.has(roomCode)) {
       const room = rooms.get(roomCode);
       room.peers.delete(socket.id);
-      socket.to(roomCode).emit('peer:left', { peerId: socket.id });
+      socket.to(roomCode).emit('peer:left', {
+        peerId: socket.id,
+        displayName: socket.data.displayName || 'Guest'
+      });
       if (room.peers.size === 0) {
         rooms.delete(roomCode);
       }
